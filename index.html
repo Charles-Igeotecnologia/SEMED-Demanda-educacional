@@ -2704,6 +2704,43 @@ async function exportLandscapePDF(){
     wrapped('Método: Moran global com quatro centroides mais próximos, distância na projeção local, pesos padronizados por linha e 499 permutações, semente fixa. A vizinhança é recalculada no recorte. Resultado exploratório, dependente do modelo de vizinhança; não indica localização exata para novas escolas.',10,131,277,9);
     wrapped('Fonte tabular: '+DATA.source+'. MEC/INEP/IBGE/SEMED/DEPLAN/DIE, referência 2021. Rural e linha municipal ficam separados dos indicadores por bairro. A razão atendimento/escolarizável pode ultrapassar 100%, pois a fonte informa atendimento de moradores de outros bairros.',10,153,277,9);
     wrapped('Limites: Shapefile BAIRRO fornecido pelo usuário, malha atualizada sem equivalência histórica comprovada com 2021. Há pequenas sobreposições preservadas e bairro sem dados de 2021. Os valores documentados não foram corrigidos; a soma da população não atendida por bairro diverge da referência municipal. '+$('viewNote').textContent,10,176,277,9);
+    // Match the HTML construction table: zone/search filters, all four stages.
+    const schoolRows=rows.slice().sort((a,b)=>sumField(b,'buildings','all')-sumField(a,'buildings','all')||a.name.localeCompare(b.name,'pt-BR'));
+    const schoolMissing=features.filter(f=>!records.has(f.properties.key)).sort((a,b)=>a.properties.name.localeCompare(b.properties.name,'pt-BR'));
+    const schoolWidths=[61,34,35,39,39,36,33];
+    let schoolY;
+    function schoolPage(){
+      pdf.addPage();reportHeader('ESCOLAS NECESSÁRIAS POR BAIRRO');
+      text('Necessidade documentada em 2021 | quatro etapas completas | ordem: maior total primeiro',10,32,8,'#536362');
+      pdf.setFillColor('#e2ede7');pdf.rect(10,36,277,14,'F');
+      const headings=[['Bairro',''],['Zona',''],['Creche','0-3 anos'],['Pré-escolar','4-5 anos'],['Anos iniciais','6-10 anos'],['Anos finais','11-14 anos'],['Total','de escolas']];
+      let x=10;headings.forEach(([label,age],i)=>{text(label,x+3,42,9,'#172f32',true);if(age)text(age,x+3,47,7,'#536362');x+=schoolWidths[i];});
+      schoolY=50;
+      text('Filtros de zona e busca aplicados. Etapa: quatro etapas, mesmo com filtro específico. Sem dados não equivale a zero.',10,199,7,'#536362');
+    }
+    function schoolLine(cells,index,{summary=false,selected=false}={}){
+      pdf.setFont('helvetica',summary?'bold':'normal');pdf.setFontSize(9);
+      const lines=cells.map((v,i)=>pdf.splitTextToSize(clean(v),schoolWidths[i]-6));
+      const height=Math.max(summary?11:8,...lines.map(a=>a.length*3.6+4));
+      if(schoolY+height>192)schoolPage();
+      pdf.setFillColor(summary?'#e2ede7':selected?'#dcefe5':index%2?'#f0f5f2':'#ffffff');pdf.rect(10,schoolY,277,height,'F');
+      let x=10;
+      lines.forEach((line,i)=>{
+        if(i<2)text(line,x+3,schoolY+5.3,9,'#172f32',summary);
+        else{
+          pdf.setFont('helvetica',summary||i===6?'bold':'normal');pdf.setFontSize(cells[i]==='Sem dados'?8:10);pdf.setTextColor(i===6?'#17614d':'#172f32');
+          pdf.text(line,x+schoolWidths[i]-3,schoolY+5.3,{align:'right'});
+        }
+        x+=schoolWidths[i];
+      });
+      pdf.setDrawColor('#d4dfd9');pdf.setLineWidth(.15);pdf.line(10,schoolY+height,287,schoolY+height);
+      schoolY+=height;
+    }
+    schoolPage();
+    schoolRows.forEach((r,i)=>schoolLine([r.name,featureMap.get(r.key).properties.zone.replace('ZONA ',''),...r.buildings.map(v=>fmt(v,'buildings')),fmt(sumField(r,'buildings','all'),'buildings')],i,{selected:r.key===state.selected}));
+    schoolMissing.forEach((f,i)=>schoolLine([f.properties.name,f.properties.zone.replace('ZONA ',''),...Array(5).fill('Sem dados')],schoolRows.length+i));
+    if(!schoolRows.length&&!schoolMissing.length){text('Nenhum bairro no recorte selecionado.',13,schoolY+7,9);schoolY+=12;}
+    schoolLine(['Total documentado ('+schoolRows.length+' bairros com dados)','',...STAGES.map((_,i)=>fmt(total(rows,'buildings',String(i)),'buildings')),fmt(total(rows,'buildings','all'),'buildings')],0,{summary:true});
     const tableRows=sortedRows().map(r=>[r.name,featureMap.get(r.key).properties.zone.replace('ZONA ',''),...['population','served','unmet','buildings'].map(field=>fmt(value(r,field),field)),fmt(value(r))]);
     for(const f of features.filter(f=>!records.has(f.properties.key)))tableRows.push([f.properties.name,f.properties.zone.replace('ZONA ',''),'Sem dados','Sem dados','Sem dados','Sem dados','Sem dados']);
     const widths=[62,31,37,34,37,36,40],headers=['Bairro','Zona','Escolarizável','Atendida','Não atendida','Prédios','Indicador selecionado'];let y;
