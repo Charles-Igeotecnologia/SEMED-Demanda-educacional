@@ -2342,14 +2342,14 @@ state.heatLabels=true;
 function priorityCandidates(){
   const positive=visibleRows().map(r=>({row:r,v:value(r,'buildings')})).filter(d=>Number.isFinite(d.v)&&d.v>0).sort((a,b)=>b.v-a.v||a.row.key.localeCompare(b.row.key));
   if(!positive.length)return {items:[],threshold:null};
-  const threshold=quantile(positive.map(d=>d.v).sort((a,b)=>a-b),.75),max=positive[0].v;
-  return {threshold,items:positive.filter(d=>d.v>=threshold).slice(0,10).map(d=>({...d,weight:100*d.v/max}))};
+  const top=positive.slice(0,5),threshold=top[top.length-1].v,max=positive[0].v;
+  return {threshold,items:top.map(d=>({...d,weight:100*d.v/max}))};
 }
 function schedulePriorityLabels(){if(priorityFrame!==null)return;priorityFrame=requestAnimationFrame(()=>{priorityFrame=null;renderPriorityLabels();});}
 function renderPriorityLabels(){
   priorityLabels.clearLayers();
   const heat=state.view==='heat',enabled=heat&&state.heatLabels;
-  $('labels').textContent=heat?'Rótulos prioritários':'Nomes dos bairros';
+  $('labels').textContent=heat?'Rótulos · 5 maiores':'Nomes dos bairros';
   $('labels').setAttribute('aria-pressed',String(heat?state.heatLabels:state.labels));
   if(map.hasLayer(labels)&&heat)map.removeLayer(labels);
   if(!heat&&state.labels&&!map.hasLayer(labels))labels.addTo(map);
@@ -2363,7 +2363,7 @@ function renderPriorityLabels(){
     const w=Math.ceil(labelMeasure.measureText(f.properties.name).width)+12,h=24;
     if(p.x<0||p.y<0||p.x>size.x||p.y>size.y)continue;
     let placement=null;
-    for(const [dx,dy] of [[0,0],[0,-28],[0,28],[-36,0],[36,0],[0,-56],[0,56],[-60,-28],[60,28],[-60,28],[60,-28],[-88,0],[88,0]]){
+    for(const [dx,dy] of [[0,0],[0,-28],[0,28],[-36,0],[36,0],[0,-56],[0,56],[-60,-28],[60,28],[-60,28],[60,-28],[-88,0],[88,0],[0,-84],[0,84],[0,-112],[0,112],[-88,-56],[88,56],[-88,56],[88,-56]]){
       const q=L.point(p.x+dx,p.y+dy),rect={left:q.x-w/2-4,right:q.x+w/2+4,top:q.y-h/2-4,bottom:q.y+h/2+4};
       if(rect.left<6||rect.top<6||rect.right>size.x-6||rect.bottom>size.y-6)continue;
       if(occupied.some(r=>rect.left<r.right&&rect.right>r.left&&rect.top<r.bottom&&rect.bottom>r.top))continue;
@@ -2380,8 +2380,8 @@ function renderPriorityLabels(){
     const title=f.properties.name+': '+fmt(d.v,'buildings')+' prédios necessários | peso '+number(d.weight,0)+'/100';
     L.marker(labelPoint,{pane:'priorityNames',interactive:false,keyboard:false,icon:L.divIcon({className:'priority-district-label',html:'<span data-priority="'+number(d.weight,0)+'" title="'+esc(title)+'" style="font-size:'+font+'px;font-weight:'+bold+'">'+esc(f.properties.name)+'</span>',iconSize:[w,h],iconAnchor:[w/2,h/2]})}).addTo(priorityLabels);
   }
-  $('heatLabelNote').textContent=!items.length?'Sem valores positivos documentados de construção para priorizar neste recorte.':!enabled?'Rótulos prioritários desativados.':occupied.length+' de '+items.length+' nomes prioritários visíveis · quartil superior da construção '+(state.stage==='all'?'nas quatro etapas':STAGES[+state.stage])+'.'+(occupied.length<items.length?' Amplie ou mova o mapa para ler os demais.':'');
-  $('heatLabelNote').title=threshold===null?'':'Critério: quartil superior dos valores positivos de construção (a partir de '+number(threshold,2)+'), até 10 maiores. Peso = 100 × necessidade / maior necessidade do recorte. Empates por chave do bairro. Rótulos maiores e mais fortes têm prioridade. Pequenos deslocamentos usam linhas de chamada até o bairro; colisões remanescentes e bordas da tela ocultam os demais.';
+  $('heatLabelNote').textContent=!items.length?'Sem valores positivos documentados de construção para priorizar neste recorte.':!enabled?'Rótulos dos cinco maiores desativados.':occupied.length+' de '+items.length+' nomes prioritários visíveis · cinco maiores necessidades de construção '+(state.stage==='all'?'nas quatro etapas':STAGES[+state.stage])+'.'+(occupied.length<items.length?' Amplie ou mova o mapa para ler os demais.':'');
+  $('heatLabelNote').title=threshold===null?'':'Critério: até cinco maiores valores positivos de construção do recorte. Menor valor selecionado: '+number(threshold,2)+'. Peso = 100 × necessidade / maior necessidade do recorte. Empates por chave do bairro. Rótulos maiores e mais fortes têm prioridade. Pequenos deslocamentos usam linhas de chamada até o bairro; colisões remanescentes e bordas da tela ocultam os demais. O mesmo critério é usado no PDF.';
 }
 map.on('zoomend moveend resize',schedulePriorityLabels);
 if(document.fonts)document.fonts.ready.then(schedulePriorityLabels);
@@ -2578,8 +2578,9 @@ async function createReportMap(features){
     ctx.beginPath();
     for(const polygon of parts)for(const ring of polygon){ring.forEach((p,i)=>{const xy=project(p);if(!i)ctx.moveTo(...xy);else ctx.lineTo(...xy);});ctx.closePath();}
     ctx.globalAlpha=thematicOpacity(value(records.get(feature.properties.key)));ctx.fillStyle=color(value(records.get(feature.properties.key)));ctx.fill('evenodd');ctx.globalAlpha=1;ctx.strokeStyle='#e0f5e8';ctx.lineWidth=1.6;ctx.stroke();
-    if(state.labels){const xy=project([feature.properties.label[1],feature.properties.label[0]]);ctx.font='17px Arial';ctx.textAlign='center';ctx.lineWidth=4;ctx.strokeStyle='#061619';ctx.strokeText(feature.properties.name,...xy);ctx.fillStyle='#fff';ctx.fillText(feature.properties.name,...xy);}
+    if(state.labels&&state.view!=='heat'){const xy=project([feature.properties.label[1],feature.properties.label[0]]);ctx.font='17px Arial';ctx.textAlign='center';ctx.lineWidth=4;ctx.strokeStyle='#061619';ctx.strokeText(feature.properties.name,...xy);ctx.fillStyle='#fff';ctx.fillText(feature.properties.name,...xy);}
   }
+  const occupiedLabels=[];
   if(selected){
     const parts=selected.geometry.type==='Polygon'?[selected.geometry.coordinates]:selected.geometry.coordinates;
     ctx.beginPath();for(const polygon of parts)for(const ring of polygon){ring.forEach((p,i)=>{const xy=project(p);if(i)ctx.lineTo(...xy);else ctx.moveTo(...xy);});ctx.closePath();}
@@ -2588,6 +2589,38 @@ async function createReportMap(features){
     const label=selected.properties.name,w=ctx.measureText(label).width+24;
     const lx=Math.max(w/2+12,Math.min(1500-w/2-12,xy[0])),ly=Math.max(35,Math.min(1160,xy[1]));
     ctx.fillStyle='#061619';ctx.fillRect(lx-w/2,ly-23,w,36);ctx.fillStyle='#fff';ctx.fillText(label,lx,ly+3);
+    occupiedLabels.push({left:lx-w/2-8,right:lx+w/2+8,top:ly-31,bottom:ly+21});
+  }
+  // Draw the same five construction priorities in the export's own projection.
+  // Reserve label rectangles and keep leaders tied to the original district anchor.
+  if(state.view==='heat'&&state.heatLabels){
+    ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';
+    for(const d of priorityCandidates().items){
+      const feature=featureMap.get(d.row.key);
+      if(feature===selected)continue; // The selected district already has its name.
+      const [ax,ay]=project([feature.properties.label[1],feature.properties.label[0]]);
+      if(ax<0||ay<0||ax>1500||ay>1200)continue;
+      const font=32+4*d.weight/100;
+      ctx.font='bold '+font+'px Arial';
+      const w=ctx.measureText(feature.properties.name).width+24,h=font+18;
+      let placement=null;
+      for(const [dx,dy] of [[0,0],[0,-52],[0,52],[-96,0],[96,0],[0,-104],[0,104],[-160,-52],[160,52],[-160,52],[160,-52],[0,-156],[0,156]]){
+        const x=ax+dx,y=ay+dy,rect={left:x-w/2,right:x+w/2,top:y-h/2,bottom:y+h/2};
+        if(rect.left<18||rect.right>1482||rect.top<100||rect.bottom>1100)continue;
+        if(occupiedLabels.some(r=>rect.left<r.right&&rect.right>r.left&&rect.top<r.bottom&&rect.bottom>r.top))continue;
+        placement={x,y,rect,shifted:dx!==0||dy!==0};break;
+      }
+      if(!placement)continue;
+      occupiedLabels.push(placement.rect);
+      if(placement.shifted){
+        ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(placement.x,placement.y);
+        ctx.strokeStyle='#061619';ctx.lineWidth=6;ctx.stroke();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+        ctx.beginPath();ctx.arc(ax,ay,4,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+      }
+      ctx.strokeStyle='#061619';ctx.lineWidth=6;ctx.strokeText(feature.properties.name,placement.x,placement.y);
+      ctx.fillStyle='#fff';ctx.fillText(feature.properties.name,placement.x,placement.y);
+    }
+    ctx.restore();
   }
   ctx.textAlign='center';ctx.font='bold 24px Arial';ctx.fillStyle='#fff';ctx.fillText('N',1450,45);ctx.beginPath();ctx.moveTo(1450,60);ctx.lineTo(1438,90);ctx.lineTo(1450,80);ctx.lineTo(1462,90);ctx.closePath();ctx.fill();
   const start=crs.pointToLatLng(origin.add([40,1150]),zoom),end=crs.pointToLatLng(origin.add([240,1150]),zoom);
