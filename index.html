@@ -1035,6 +1035,38 @@ body.dashboard{font-size:14px}.dashboard .wrap{max-width:2200px;padding-left:20p
 .priority-district-label span{color:#fff;font-family:Roboto,Arial,sans-serif;line-height:1.25;white-space:nowrap;text-shadow:-1px -1px 1px #061619,1px -1px 1px #061619,-1px 1px 1px #061619,1px 1px 1px #061619,0 0 3px #061619}
 .heat-label-note{font-size:11px;line-height:1.5;color:#465365;margin:8px 0 0}
 
+@media screen{
+ .rank-panel .rank{max-height:none;overflow:visible;scrollbar-gutter:auto;gap:8px;padding:0 14px 14px}
+ .rank-donut{min-width:0}
+ .rank-donut-focus{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;font-size:12px;line-height:1.5;color:#0e4a8a;font-weight:600}
+ .rank-donut-focus>span{min-width:0;overflow-wrap:break-word}
+ .rank-panel .rank .rank-donut-focus button{display:block;flex:none;min-height:32px;padding:4px 8px;font-size:10px;line-height:1.4;border:1px solid #cfdbea;border-radius:999px;background:#fff;color:#0e4a8a}
+ .rank-donut svg{display:block;width:min(100%,220px);height:auto;margin:0 auto;overflow:visible}
+ .rank-donut-number{fill:#0e4a8a;font-family:Roboto,Arial,sans-serif;font-weight:700;font-variant-numeric:tabular-nums}
+ .rank-donut-caption{fill:#5b6472;font:12px Roboto,Arial,sans-serif}
+ .rank-donut-segment{cursor:pointer;transition:stroke-width .15s}
+ .rank-donut-segment:hover,.rank-donut-segment.is-selected{stroke-width:39}
+ .rank-donut-slice-value{font:700 15px Roboto,Arial,sans-serif;fill:#fff;stroke:#173755;stroke-width:2.5;paint-order:stroke;stroke-linejoin:round;cursor:pointer;font-variant-numeric:tabular-nums}
+ .rank-donut-help{font-size:10px;line-height:1.5;color:#5b6472;margin:0}
+ .rank-stage-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ .rank-panel .rank .rank-stage-choice{display:grid;grid-template-columns:7px minmax(0,1fr) auto;align-items:center;gap:6px;padding:7px 5px;min-height:42px;border:1px solid #dce3ec;border-radius:6px;background:#fff;text-align:left}
+ .rank-stage-choice i{width:7px;height:7px;border-radius:50%}
+ .rank-stage-choice span{font-size:11px;line-height:1.4;color:#465365}
+ .rank-stage-choice strong{font-size:16px;color:#0e4a8a;font-variant-numeric:tabular-nums}
+ .rank-panel .rank .rank-stage-choice[aria-pressed=true]{background:#eaf1fa;border-color:#7da2ca}
+ .rank-list-heading{display:flex;justify-content:space-between;gap:8px;padding-bottom:5px;border-bottom:1px solid #dce3ec;font-size:10px;color:#5b6472}
+ .rank-donut-list{list-style:none;margin:0;padding:0;display:grid;gap:0}
+ .rank-panel .rank .rank-row{display:grid;grid-template-columns:8px 18px minmax(0,1fr) auto;align-items:center;gap:7px;border:0;border-bottom:1px solid #e4e8ef;border-radius:0;background:transparent;padding:4px 2px;min-height:28px;width:100%;text-align:left}
+ .rank-color{width:8px;height:8px;border-radius:50%;display:block}
+ .rank-panel .rank .rank-row[aria-pressed=true]{background:#eaf1fa;border-radius:5px}
+ .rank-panel .rank .rank-row:hover{background:#f1f5fa}
+ .rank-row-name{font-size:12px;font-weight:500;line-height:1.4;color:#0e4a8a;overflow-wrap:break-word}
+ .rank-row-value{font-size:13px;font-weight:700;line-height:1.4;color:#0e4a8a;white-space:nowrap;font-variant-numeric:tabular-nums}
+ @media(min-width:1251px){.dashboard-workspace{grid-template-columns:320px minmax(0,1fr) 350px}}
+ @media(max-width:760px){.rank-panel .rank .rank-row{min-height:44px}.rank-row-name{font-size:13px}.rank-donut-help{font-size:11px}}
+ @media(prefers-reduced-motion:reduce){.rank-donut-segment{transition:none}}
+}
+
 /* Mobile: content sets panel height; numbers retain a complete reading line. */
 @media screen and (max-width:760px){
  .dashboard .wrap{padding-left:12px;padding-right:12px}
@@ -2268,6 +2300,7 @@ const norm = value => String(value??'').normalize('NFD').replace(/[\u0300-\u036f
 const number = (v,dec=1) => Number.isFinite(v) ? new Intl.NumberFormat('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec}).format(v) : 'Sem dados';
 const fmt = (v,metric=state.metric) => number(v,metric==='buildings'?0:1)+(Number.isFinite(v)&&metric.endsWith('Rate')?'%':'');
 let state={stage:'all',metric:'buildings',zone:'all',search:'',selected:null,labels:false,base:'satellite',view:'districts'};
+let rankingStage=null;
 let records=new Map(DATA.rows.map(r=>[r.key,r]));
 const featureMap=new Map(DATA.geo.features.map(f=>[f.properties.key,f]));
 function sumField(row,field,stage=state.stage){
@@ -2431,15 +2464,31 @@ function renderLegend(){
 }
 function sortedRows(){return visibleRows().sort((a,b)=>$('sort').value==='name'?a.name.localeCompare(b.name,'pt-BR'):(value(b)??-Infinity)-(value(a)??-Infinity)||a.name.localeCompare(b.name,'pt-BR'));}
 function renderRanking(){
-  const rows=visibleRows().filter(r=>Number.isFinite(value(r))).sort((a,b)=>value(b)-value(a)).slice(0,10);const max=rows.length?value(rows[0]):0;
+  const rows=visibleRows().filter(r=>Number.isFinite(value(r))).sort((a,b)=>value(b)-value(a)).slice(0,10);
   $('rankingSub').textContent=METRICS[state.metric]+' · '+(state.stage==='all'?'todas as etapas':STAGES[+state.stage]);
+  if(!rows.length&&!state.selected){$('ranking').innerHTML='<p class="empty">Nenhum bairro com dados neste recorte.</p>';return;}
+  const palette=['#0e4a8a','#168f9c','#d69b29','#8062a6'];
   const stageNames=['Creche','Pré-escola','Anos iniciais','Anos finais'];
-  const metricLabel=state.metric==='buildings'?'prédios no filtro':METRICS[state.metric].toLowerCase();
-  $('ranking').innerHTML=rows.length?rows.map((r,i)=>{
-    const stages=stageNames.map((label,j)=>'<span class="rank-stage"><span>'+label+'</span><strong>'+fmt(r.buildings[j],'buildings')+'</strong></span>').join('');
-    return '<button data-key="'+esc(r.key)+'" aria-pressed="'+(r.key===state.selected)+'" style="--bar:'+((max>0?value(r)/max:0)*80)+'%"><span class="rank-name-line"><span class="num">'+String(i+1).padStart(2,'0')+'</span><span class="rank-name">'+esc(r.name)+'</span></span><span class="rank-indicator"><strong class="value">'+fmt(value(r))+'</strong><span>'+esc(metricLabel)+'</span></span><span class="rank-stage-caption">Escolas necessárias · quatro etapas</span><span class="rank-stages">'+stages+'</span></button>';
-  }).join(''):'<p class="empty">Nenhum bairro com dados neste recorte.</p>';
-
+  const focusFeature=state.selected?featureMap.get(state.selected):null,focusRow=focusFeature?records.get(state.selected):null;
+  const scopeName=focusFeature?focusFeature.properties.name:rows.length+' bairros do ranking';
+  const stageTotals=stageNames.map((_,i)=>focusFeature?(focusRow?.buildings[i]??null):total(rows,'buildings',String(i))),sum=stageTotals.every(Number.isFinite)?stageTotals.reduce((a,b)=>a+b,0):null;
+  const descriptions=rows.map(r=>r.name+' | Total de escolas: '+fmt(sumField(r,'buildings','all'),'buildings')+' | '+stageNames.map((s,j)=>s+': '+fmt(r.buildings[j],'buildings')).join(' | '));
+  let offset=0,sliceLabels='',graphic='<circle cx="160" cy="128" r="88" fill="none" stroke="#e8eef3" stroke-width="32"/>';
+  stageTotals.forEach((amount,i)=>{
+    if(!(sum>0)||!(amount>0))return;
+    const sweep=amount/sum*100,gap=stageTotals.filter(v=>v>0).length===1?0:Math.min(.8,sweep*.15);
+    graphic+='<circle class="rank-donut-segment'+(rankingStage===i?' is-selected':'')+'" data-rank-stage="'+i+'" data-share="'+sweep+'" cx="160" cy="128" r="88" fill="none" stroke="'+palette[i]+'" stroke-width="32" pathLength="100" stroke-dasharray="'+(sweep-gap)+' '+(100-sweep+gap)+'" stroke-dashoffset="'+(-offset)+'" transform="rotate(-90 160 128)"><title>'+esc(stageNames[i]+': '+fmt(amount,'buildings')+' escolas necessárias | '+number(sweep)+'% | '+scopeName)+'</title></circle>';
+    if(sweep>=6){const angle=(offset+sweep/2)*Math.PI/50-Math.PI/2;sliceLabels+='<text class="rank-donut-slice-value" data-rank-stage="'+i+'" x="'+(160+88*Math.cos(angle))+'" y="'+(128+88*Math.sin(angle))+'" text-anchor="middle" dominant-baseline="central">'+fmt(amount,'buildings')+'</text>';}
+    offset+=sweep;
+  });
+  graphic+=sliceLabels;
+  const center=fmt(rankingStage===null?sum:stageTotals[rankingStage],'buildings'),centerLabel=rankingStage===null?'Total de escolas':stageNames[rankingStage];
+  graphic+='<text x="160" y="126" class="rank-donut-number" text-anchor="middle" style="font-size:'+(center.length>10?23:30)+'px">'+esc(center)+'</text><text x="160" y="149" class="rank-donut-caption" text-anchor="middle">'+centerLabel+'</text><text x="160" y="166" class="rank-donut-caption" text-anchor="middle">'+(focusFeature?'Bairro selecionado':rows.length+' bairros')+'</text>';
+  const focus='<div class="rank-donut-focus"><span>'+esc(scopeName)+'</span>'+(focusFeature?'<button data-rank-clear type="button">Ver ranking</button>':'')+'</div>';
+  const chart=focus+'<div class="rank-donut"><svg viewBox="0 0 320 256" role="img" aria-labelledby="rankDonutTitle rankDonutDescription"><title id="rankDonutTitle">Escolas necessárias por etapa | '+esc(scopeName)+'</title><desc id="rankDonutDescription">Cada fatia corresponde a uma etapa de ensino. '+esc(stageNames.map((s,i)=>s+': '+fmt(stageTotals[i],'buildings')).join('; '))+'. Selecione uma etapa pelos botões abaixo para ver os quantitativos de cada bairro.</desc>'+graphic+'</svg></div>';
+  const choices='<div class="rank-stage-choices" role="group" aria-label="Etapa do gráfico e da lista de bairros">'+stageNames.map((s,i)=>'<button class="rank-stage-choice" data-rank-stage="'+i+'" aria-pressed="'+(rankingStage===i)+'" aria-label="'+esc(s+': '+fmt(stageTotals[i],'buildings')+' escolas necessárias; selecionar etapa ou voltar ao total')+'"><i style="background:'+palette[i]+'" aria-hidden="true"></i><span>'+s+'</span><strong>'+fmt(stageTotals[i],'buildings')+'</strong></button>').join('')+'</div>';
+  const list='<ol class="rank-donut-list">'+rows.map((r,i)=>'<li><button class="rank-row" data-key="'+esc(r.key)+'" aria-pressed="'+(r.key===state.selected)+'" aria-label="'+esc((i+1)+'. '+descriptions[i])+'" title="'+esc(descriptions[i])+'"><i class="rank-color" style="background:'+(rankingStage===null?'#0e4a8a':palette[rankingStage])+'" aria-hidden="true"></i><span class="num">'+String(i+1).padStart(2,'0')+'</span><span class="rank-row-name">'+esc(r.name)+'</span><strong class="rank-row-value">'+fmt(rankingStage===null?sumField(r,'buildings','all'):r.buildings[rankingStage],'buildings')+'</strong></button></li>').join('')+'</ol>';
+  $('ranking').innerHTML=chart+choices+'<p class="rank-donut-help" aria-live="polite">'+(sum===null?'Sem dados documentados de 2021 para este bairro.':sum>0?'Clique numa etapa para detalhar a lista; repita o clique para voltar ao total.':'Necessidade registrada igual a zero, sem fatias a exibir.')+' Os nomes atualizam a rosca e o mapa.</p><div class="rank-list-heading"><span>Bairro</span><span>'+esc(rankingStage===null?'Quatro etapas':stageNames[rankingStage])+'</span></div>'+list;
 }
 function renderTable(){
   const all=visibleFeatures(),rows=sortedRows(),missing=all.filter(f=>!records.has(f.properties.key));
@@ -2518,8 +2567,8 @@ for(const zone of [...new Set(DATA.geo.features.map(f=>f.properties.zone))].sort
 for(const id of ['stage','metric','zone'])$(id).addEventListener('change',()=>{state[id]=$(id).value;render();});
 $('search').addEventListener('input',()=>{state.search=$('search').value;render();});
 $('sort').addEventListener('change',renderTable);
-$('reset').addEventListener('click',()=>{state={...state,stage:'all',metric:'buildings',zone:'all',search:'',selected:null};$('stage').value='all';$('metric').value='buildings';$('zone').value='all';$('search').value='';$('sort').value='metric';render();fit();});
-$('clearSelection').addEventListener('click',()=>{state.selected=null;renderDetail();styleMap();renderTable();renderRanking();});
+$('reset').addEventListener('click',()=>{rankingStage=null;state={...state,stage:'all',metric:'buildings',zone:'all',search:'',selected:null};$('stage').value='all';$('metric').value='buildings';$('zone').value='all';$('search').value='';$('sort').value='metric';render();fit();});
+$('clearSelection').addEventListener('click',()=>{state.selected=null;rankingStage=null;renderDetail();styleMap();renderTable();renderRanking();});
 for(const card of document.querySelectorAll('.kpi[data-metric]'))card.addEventListener('click',()=>{state.metric=card.dataset.metric;$('metric').value=state.metric;render();});
 $('fitMap').addEventListener('click',fit);
 for(const [id,view] of [['viewDistricts','districts'],['viewHeat','heat']])$(id).addEventListener('click',()=>{state.view=view;for(const [button,name] of [['viewDistricts','districts'],['viewHeat','heat']])$(button).setAttribute('aria-pressed',String(name===view));render();});
@@ -2534,7 +2583,8 @@ function setBase(base){
 $('satellite').addEventListener('click',()=>setBase('satellite'));
 $('basemap').addEventListener('click',()=>setBase('streets'));
 $('offlineMap').addEventListener('click',()=>setBase('offline'));
-for(const container of ['ranking','tableBody','constructionBody'])$(container).addEventListener('click',e=>{const b=e.target.closest('button[data-key]');if(!b)return;select(b.dataset.key);const layer=layers.get(b.dataset.key);map.fitBounds(layer.getBounds(),{padding:[40,40],maxZoom:14});});
+for(const container of ['ranking','tableBody','constructionBody'])$(container).addEventListener('click',e=>{const b=e.target.closest('[data-key]');if(!b)return;select(b.dataset.key);const layer=layers.get(b.dataset.key);map.fitBounds(layer.getBounds(),{padding:[40,40],maxZoom:14});});
+$('ranking').addEventListener('click',e=>{if(e.target.closest('[data-rank-clear]')){$('clearSelection').click();return;}const b=e.target.closest('[data-rank-stage]');if(!b)return;const next=b.dataset.rankStage==='all'?null:Number(b.dataset.rankStage);rankingStage=next===rankingStage?null:next;renderRanking();});
 $('exportCsv').addEventListener('click',()=>{
   const quote=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
   const decimal=v=>Number.isFinite(v)?String(v).replace('.',','):'';
