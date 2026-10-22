@@ -2712,24 +2712,24 @@ async function exportLandscapePDF(){
     function schoolPage(){
       pdf.addPage();reportHeader('ESCOLAS NECESSÁRIAS POR BAIRRO');
       text('Necessidade documentada em 2021 | quatro etapas completas | ordem: maior total primeiro',10,32,8,'#536362');
-      pdf.setFillColor('#e2ede7');pdf.rect(10,36,277,14,'F');
+      pdf.setFillColor('#e2ede7');pdf.rect(10,34,277,10,'F');
       const headings=[['Bairro',''],['Zona',''],['Creche','0-3 anos'],['Pré-escolar','4-5 anos'],['Anos iniciais','6-10 anos'],['Anos finais','11-14 anos'],['Total','de escolas']];
-      let x=10;headings.forEach(([label,age],i)=>{text(label,x+3,42,9,'#172f32',true);if(age)text(age,x+3,47,7,'#536362');x+=schoolWidths[i];});
-      schoolY=50;
+      let x=10;headings.forEach(([label,age],i)=>{text(label,x+3,38.2,8.5,'#172f32',true);if(age)text(age,x+3,42,7,'#536362');x+=schoolWidths[i];});
+      schoolY=44;
       text('Filtros de zona e busca aplicados. Etapa: quatro etapas, mesmo com filtro específico. Sem dados não equivale a zero.',10,199,7,'#536362');
     }
     function schoolLine(cells,index,{summary=false,selected=false}={}){
-      pdf.setFont('helvetica',summary?'bold':'normal');pdf.setFontSize(9);
+      pdf.setFont('helvetica',summary?'bold':'normal');pdf.setFontSize(8.5);
       const lines=cells.map((v,i)=>pdf.splitTextToSize(clean(v),schoolWidths[i]-6));
-      const height=Math.max(summary?11:8,...lines.map(a=>a.length*3.6+4));
-      if(schoolY+height>192)schoolPage();
+      const height=Math.max(summary?8:4.5,...lines.map(a=>(a.length-1)*3.5+4.5));
+      if(schoolY+height>194)schoolPage();
       pdf.setFillColor(summary?'#e2ede7':selected?'#dcefe5':index%2?'#f0f5f2':'#ffffff');pdf.rect(10,schoolY,277,height,'F');
       let x=10;
       lines.forEach((line,i)=>{
-        if(i<2)text(line,x+3,schoolY+5.3,9,'#172f32',summary);
+        if(i<2)text(line,x+3,schoolY+3.15,8.5,'#172f32',summary);
         else{
-          pdf.setFont('helvetica',summary||i===6?'bold':'normal');pdf.setFontSize(cells[i]==='Sem dados'?8:10);pdf.setTextColor(i===6?'#17614d':'#172f32');
-          pdf.text(line,x+schoolWidths[i]-3,schoolY+5.3,{align:'right'});
+          pdf.setFont('helvetica',summary||i===6?'bold':'normal');pdf.setFontSize(cells[i]==='Sem dados'?8:9.5);pdf.setTextColor(i===6?'#17614d':'#172f32');
+          pdf.text(line,x+schoolWidths[i]-3,schoolY+3.15,{align:'right'});
         }
         x+=schoolWidths[i];
       });
