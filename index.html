@@ -3462,6 +3462,7 @@ window.addEventListener('afterprint',restorePrint);
  }
  const actions=document.querySelector('.header>.actions'),footer=document.querySelector('footer .wrap');
  const tabs=['inicio','2021','2026','sintese','ajuda'];
+ let territorialMapOpened=false;
  const institution='<div class="institution-footer">Departamento de Planejamento</div><div class="mock-divisions">DIE | Divisão de Informação e Estatística<br>DGTI | Divisão de Gestão de Tecnologia da Informação - Geotecnologia</div><div class="source-footer">Fonte: MEC/INEP/IBGE/SEMED/DEPLAN/DIE</div>';
  const credit='<div class="institution-credit">Desenvolvimento: <strong>Charles Silva de Araújo</strong><br>Especialista em geotecnologia da Secretaria Municipal de Educação — SEMED Manaus.</div>';
  function yearTab(year,focus=false){
@@ -3472,7 +3473,7 @@ window.addEventListener('afterprint',restorePrint);
   footer.innerHTML=institution+'<div class="note">'+context+'</div>'+credit;
   const title={inicio:'Início', '2021':'Necessidade de construção · 2021','2026':'Educação infantil · 2026',sintese:'Quadro síntese · 2026',ajuda:'Manual de uso e ajuda'}[year];
   document.title=title+' | Análise Geoestatística da Demanda Educacional — SEMED Manaus';
-  if(year==='2021')requestAnimationFrame(()=>map.invalidateSize({pan:true}));
+  if(year==='2021')requestAnimationFrame(()=>{map.invalidateSize({pan:true});if(!territorialMapOpened){fit();territorialMapOpened=true;}});
   if(focus)$('tab'+year).focus();
  }
  for(const id of tabs){$('tab'+id).addEventListener('click',()=>yearTab(id));$('tab'+id).addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const index=tabs.indexOf(id),next=e.key==='Home'?0:e.key==='End'?tabs.length-1:(index+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;yearTab(tabs[next],true);}});}
